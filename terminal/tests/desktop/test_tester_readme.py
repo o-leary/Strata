@@ -47,7 +47,7 @@ class TesterReadmeTests(unittest.TestCase):
         text = self.out.read_text()
         self.assertIn(sha(app), text)
         self.assertNotIn("@APPIMAGE@", text)
-        for needle in ("libfuse2t64", "Ubuntu 26.04", "--browser", "--quit", "--save-logs", f"Strata {APP_VERSION}", NOTICE):
+        for needle in ("libfuse2t64", "Ubuntu 26.04", "--browser", "--quit", "--save-logs", "--lan", f"Strata {APP_VERSION}", NOTICE):
             self.assertIn(needle, text)
         run("--verify", self.out, "--files-dir", self.files)
 
