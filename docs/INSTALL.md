@@ -42,7 +42,8 @@ hardware drivers. Models and updates need an internet connection to download.
      downloaded file with `--appimage-extract-and-run`. To share your models with other devices on your network from the
      start, open a terminal and run `./Strata-0.2.20-linux-x86_64.AppImage --lan`; it prints the address for the other
      device. Strata's own pages stay on this computer either way, and Settings > Serving can start or stop the share at
-     any time. [Linux help](TROUBLESHOOTING.md).
+     any time. To open Strata with the model you were using loaded again, run `./Strata-0.2.20-linux-x86_64.AppImage --resume`
+     (or `STRATA_RESUME=1`); it never downloads anything. [Linux help](TROUBLESHOOTING.md).
    - **Mac:** open `Strata-0.2.20-macos-arm64.dmg`, drag Strata into Applications, then open it. [Mac help](MAC.md).
 3. On Windows and Linux the installer has no engine inside. On first start the app shows the engine for your
    graphics card with its size and one **Download** button, with progress and resume. If you already downloaded the
