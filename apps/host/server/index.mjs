@@ -68,7 +68,7 @@ import { createAppUi } from './app-ui.mjs';
 import { appVersionFrom, appVersionToShow } from './app-version.mjs';
 import { createImageModels } from './image-models.mjs';
 import { createRuntimeModels } from './runtime-models.mjs';
-import { createNativeControl } from './native-control.mjs';
+import { createNativeControl, resumeRequested } from './native-control.mjs';
 import { nativeUnloadPlan } from './storage-check.mjs';
 import { installBundledEngine, cleanupAfterInstall } from './bundled-engine.mjs';
 import { systemLocale } from './region.mjs';
@@ -1010,6 +1010,7 @@ async function api(req, res, path, method, url) {
   if(path==='/api/native/models-folder/leave'&&method==='POST')return json(res,200,await native.leaveInterruptedMove());
   if(path==='/api/native/plan'&&method==='POST')return json(res,200,await native.plan(await readBody(req)));
   if(path==='/api/native/operations'&&method==='POST'){if(storageChanging)return error(res,409,'Wait for the model folder check to finish.');const body=await readBody(req);return json(res,202,native.operation(body.kind,body.args));}
+  if(path==='/api/native/resume'&&method==='POST')return json(res,202,await native.resumeLastLoad());
   if(path==='/api/native/logs'&&method==='GET')return json(res,200,{logs:native.logs()});
   if(path==='/api/native/logs/save'&&method==='POST'){
    /* Diagnostics to a file: the engine messages the app kept, failed operations, and the tail of each model's server log under Control.
@@ -2275,6 +2276,14 @@ if (shareOnStartRequested(process.env)) {
     console.error(`[strata] could not share on your network: ${e.message}`);
     console.error('[strata] Strata is serving this computer only. Settings > Serving can share on the network.');
   }
+}
+/* The desktop shell's `--resume` (or STRATA_RESUME=1) loads the model of the last session again, with the settings it was loaded
+   with, before anyone opens a page (native-control.mjs, resumeLastLoad). The Models screen shows the usual progress card, and a
+   model whose files are gone is reported rather than downloaded. Without the switch nothing loads, which is the default path. */
+if (resumeRequested(process.env)) {
+  void native.resumeLastLoad()
+    .then(answer => (answer.loaded ? console.log : console.error)(`[strata] resume · ${answer.loaded ? answer.summary : answer.reason}`))
+    .catch(error => console.error(`[strata] resume · ${error.message}`));
 }
 
 let stopping=false;

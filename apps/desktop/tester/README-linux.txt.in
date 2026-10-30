@@ -48,6 +48,13 @@ The terminal prints an address to type into the other device. Strata's own page 
 model is shared, on a port of its own. Please set an API key first (Settings > Serving > "Set key"), or any device on your network
 can use your model. "Local sharing" in the same page starts and stops it while Strata runs; --lan only says "start it now".
 
+To have the model you were using load itself when Strata opens, start it from a terminal with:   ./@APPIMAGE@ --resume
+Strata remembers the model you last loaded and the settings it had, and starts it again before you open a page; the Models page
+shows the usual progress. It downloads nothing: if the model's files are no longer on this computer, the terminal says so and
+Strata opens as it does without the option. A second --resume while Strata is running asks that Strata to load it.
+
+The two together:   ./@APPIMAGE@ --lan --resume
+
 
 @INCLUDE:common-troubleshoot.txt@
 
