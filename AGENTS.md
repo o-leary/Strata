@@ -124,19 +124,27 @@ want built.
   5. Test the parts the feature touches: `cargo test --bins supervisor` in `app/desktop/src-tauri`,
      `node --test app/host/tests/share-on-start.test.mjs` in `app/host`, and
      `python3 -m unittest test_tester_readme` in `terminal/tests/desktop`.
-  6. Build here, in `app/desktop`: `npm run build:ui`, then `npx tauri build --bundles appimage`.
-  7. Repack the result, or it is wrong. linuxdeploy rewrites the load paths inside the staged payloads and breaks
+  6. Refresh the parts the app carries inside the bundle, so a build does not ship an old one.
+     `python3 app/desktop/scripts/stage-control.py` re-stages `app/desktop/src-tauri/resources/control` and prints and
+     checks the version it staged. It is a build step: it downloads the pinned CPython and the hash-locked wheels and
+     verifies their digests (`--check` only verifies what is staged; `--wheelhouse <dir>` builds with no network). The
+     number to match is the one in `engine/CMakeLists.txt`, `project(strata VERSION …)`, because `BUNDLE.json` takes
+     its version from there. A bundle that says `0.1.63` against a `0.1.66` checkout ships an old server, TUI and model
+     setup, and `resources/control/COMMIT` names the commit the staged bundle came from.
+  7. Build here, in `app/desktop`: `npm run build:ui`, then `npx tauri build --bundles appimage`.
+  8. Repack the result, or it is wrong. linuxdeploy rewrites the load paths inside the staged payloads and breaks
      the bundled `rg`, so run `app/desktop/scripts/repack-appimage.sh <in> dist/Strata-<version>-linux-x86_64.AppImage`
      (the version is the one in `app/desktop/package.json`), then the same script with `--check` on that output.
      It must report `0 file(s) differ`, no damaged static PIE, and `bundled rg runs: ok`.
-  8. Write `dist/Strata-<version>-linux-x86_64.AppImage.sha256` next to it. `dist/` is not in git; that is where
+  9. Write `dist/Strata-<version>-linux-x86_64.AppImage.sha256` next to it. `dist/` is not in git; that is where
      the owner looks for a finished build.
-  9. `git push --force-with-lease origin working`. One push. No pull request, no comment on any issue or pull
+  10. `git push --force-with-lease origin working`. One push. No pull request, no comment on any issue or pull
      request, no edit of the commit message.
-  10. Prove the build carries the feature:
+  11. Prove the build carries the feature:
      `./dist/Strata-<version>-linux-x86_64.AppImage --appimage-extract-and-run --help` prints the `--lan` line.
 
 - Say what was not run. The `Minimal serving runtime` failure on this fork predates this work, so a red light there
-  is not evidence that the LAN change broke anything. The Control bundle under `app/desktop/src-tauri/resources` is
-  staged by hand and can sit one component version behind the checkout; `app/desktop/scripts/stage-control.py`
-  refreshes it, and a build should say which Control version it carried.
+  is not evidence that the LAN change broke anything. Say which Control version the build carried, from step 6: the
+  bundle under `app/desktop/src-tauri/resources` is staged by hand, so a build quietly shipping one version behind is
+  easy to do. Nothing of `--lan` lives in Control, which is the Rust shell and the Node host, so a stale bundle does
+  not break the share; it ships an old server, TUI and model setup.
