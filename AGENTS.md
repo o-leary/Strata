@@ -97,3 +97,46 @@ follow it whether a person or an agent writes the text. The short version:
   [docs/COMMUNITY_BENCHMARKS.md](docs/COMMUNITY_BENCHMARKS.md), compare against a same-day run of the build you are
   testing, and say what you did not test.
 - Open test requests and the hardware that is wanted are listed in [docs/TEST_REQUESTS.md](docs/TEST_REQUESTS.md).
+
+## This fork (o-leary/Strata)
+
+Everything above is the upstream project's. This section is the owner's own, for this fork, and it wins where the
+two meet. `origin` is the fork, `upstream` is the original repo (Niko1221/Strata). `working` is the branch the
+owner works on; `gui/appimage-lan` holds the LAN feature, `gui/appimage-resume` holds a feature the owner does not
+want built.
+
+- **Nothing is built on GitHub.** The AppImage is built on this computer, by hand. GitHub Actions stays off for
+  this fork: `gh api repos/o-leary/Strata/actions/permissions` reads `{"enabled": false}`, and if anything ever
+  turns it back on, turn it off again. Rebasing onto `upstream/main` is no reason to enable Actions, and a push to
+  `working` must not start a run.
+- **Every build carries the LAN feature** (`--lan`, also `STRATA_LAN=1`, from `gui/appimage-lan`). A build without
+  it is a mistake, and the resume branch is never merged in.
+- "update my strata build", "update my fork" or the like means all of the following, in this order:
+
+  1. `git fetch --all --prune`, then keep the old tip where it can be found again:
+     `git branch pre-rebase-working-<YYYYMMDD> working`.
+  2. Move `working` to `upstream/main` and put the one LAN commit back on top. Cherry-pick the LAN commit that is
+     already on `working`, because its paths match the current layout; the commit on `gui/appimage-lan` sits on the
+     old `apps/` layout. No `-x`: the message stays exactly as it is, with no extra lines added.
+  3. A conflict in `docs/INSTALL.md` is usually the app version inside the `--lan` sentences: keep the owner's
+     words, take the new version number.
+  4. Check the shape: `git log --oneline upstream/main..working` shows one commit, the LAN one, and no resume work.
+  5. Test the parts the feature touches: `cargo test --bins supervisor` in `app/desktop/src-tauri`,
+     `node --test app/host/tests/share-on-start.test.mjs` in `app/host`, and
+     `python3 -m unittest test_tester_readme` in `terminal/tests/desktop`.
+  6. Build here, in `app/desktop`: `npm run build:ui`, then `npx tauri build --bundles appimage`.
+  7. Repack the result, or it is wrong. linuxdeploy rewrites the load paths inside the staged payloads and breaks
+     the bundled `rg`, so run `app/desktop/scripts/repack-appimage.sh <in> dist/Strata-<version>-linux-x86_64.AppImage`
+     (the version is the one in `app/desktop/package.json`), then the same script with `--check` on that output.
+     It must report `0 file(s) differ`, no damaged static PIE, and `bundled rg runs: ok`.
+  8. Write `dist/Strata-<version>-linux-x86_64.AppImage.sha256` next to it. `dist/` is not in git; that is where
+     the owner looks for a finished build.
+  9. `git push --force-with-lease origin working`. One push. No pull request, no comment on any issue or pull
+     request, no edit of the commit message.
+  10. Prove the build carries the feature:
+     `./dist/Strata-<version>-linux-x86_64.AppImage --appimage-extract-and-run --help` prints the `--lan` line.
+
+- Say what was not run. The `Minimal serving runtime` failure on this fork predates this work, so a red light there
+  is not evidence that the LAN change broke anything. The Control bundle under `app/desktop/src-tauri/resources` is
+  staged by hand and can sit one component version behind the checkout; `app/desktop/scripts/stage-control.py`
+  refreshes it, and a build should say which Control version it carried.
