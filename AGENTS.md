@@ -102,28 +102,41 @@ follow it whether a person or an agent writes the text. The short version:
 
 Everything above is the upstream project's. This section is the owner's own, for this fork, and it wins where the
 two meet. `origin` is the fork, `upstream` is the original repo (Niko1221/Strata). `working` is the branch the
-owner works on; `gui/appimage-lan` holds the LAN feature, `gui/appimage-resume` holds a feature the owner does not
-want built.
+owner works on. `gui/appimage-lan` and `gui/appimage-resume` hold the two features the owner carries, on the old
+`apps/` layout; the commits that match the current layout ride on `working`.
 
 - **Nothing is built on GitHub.** The AppImage is built on this computer, by hand. GitHub Actions stays off for
   this fork: `gh api repos/o-leary/Strata/actions/permissions` reads `{"enabled": false}`, and if anything ever
   turns it back on, turn it off again. Rebasing onto `upstream/main` is no reason to enable Actions, and a push to
   `working` must not start a run.
-- **Every build carries the LAN feature** (`--lan`, also `STRATA_LAN=1`, from `gui/appimage-lan`). A build without
-  it is a mistake, and the resume branch is never merged in.
+- **Every build carries both features**: `--lan` (also `STRATA_LAN=1`), which shares the model with other devices on
+  the network as Strata starts, and `--resume` (also `STRATA_RESUME=1`), which loads the model you used last. A build
+  without either is a mistake.
 - "update my strata build", "update my fork" or the like means all of the following, in this order:
 
   1. `git fetch --all --prune`, then keep the old tip where it can be found again:
      `git branch pre-rebase-working-<YYYYMMDD> working`.
-  2. Move `working` to `upstream/main` and put the one LAN commit back on top. Cherry-pick the LAN commit that is
-     already on `working`, because its paths match the current layout; the commit on `gui/appimage-lan` sits on the
-     old `apps/` layout. No `-x`: the message stays exactly as it is, with no extra lines added.
-  3. A conflict in `docs/INSTALL.md` is usually the app version inside the `--lan` sentences: keep the owner's
-     words, take the new version number.
-  4. Check the shape: `git log --oneline upstream/main..working` shows one commit, the LAN one, and no resume work.
-  5. Test the parts the feature touches: `cargo test --bins supervisor` in `app/desktop/src-tauri`,
-     `node --test app/host/tests/share-on-start.test.mjs` in `app/host`, and
-     `python3 -m unittest test_tester_readme` in `terminal/tests/desktop`.
+  2. Move `working` to `upstream/main` and put the two feature commits back on top, LAN first, then resume.
+     Cherry-pick the commits that are already on `working`, because their paths match the current layout; the commits
+     on `gui/appimage-lan` and `gui/appimage-resume` sit on the old `apps/` layout and do not apply. No `-x`: the
+     message stays exactly as it is, with no extra lines added.
+  3. Expect two conflicts, and take upstream's text both times:
+     - `docs/INSTALL.md`: the app version inside the `--lan` and `--resume` sentences. Keep the owner's words, take
+       the new version number.
+     - `app/host/server/native-control.mjs`: the code is one long line, so git cannot merge it. Keep upstream's line
+       and put the resume pieces back into it: `rememberLoad(args);` just before the `return {summary:` of each load
+       that reached ready, and `lastLoad,resumeLastLoad,` after `refresh,` in the object the factory returns. Then
+       check that upstream's own words in that line are still there (`rolePatch`, `promptCacheSpread`,
+       `withTuneConfig`), because those are the ones a hand merge loses.
+  4. Check the shape: `git log --oneline upstream/main..working` shows the two feature commits and the fork's own
+     AGENTS.md commits, and nothing else.
+  5. Test the parts the features touch: `cargo test --bins supervisor` in `app/desktop/src-tauri` (12 tests, the LAN
+     and the resume ones among them), `node --test app/host/tests/share-on-start.test.mjs
+     app/host/tests/appimage-resume.test.mjs` in `app/host` (11), and `python3 -m unittest test_tester_readme` in
+     `terminal/tests/desktop` (4). Step 3 hand-merged a minified file, so run the whole host suite too: `npm test` in
+     `app/host`. Measured here on 2026-11-23: 2336 tests, 2185 pass, 146 skipped, 5 fail, and the same 5 fail on a
+     clean `upstream/main` checkout (`agent-context`, `agent-context-optimizer`, `agent-reply-ceiling`, all
+     `ctx.on is not a function`); the fork touches nothing under `app/host/server/agent`, so those are upstream's.
   6. Refresh the parts the app carries inside the bundle, so a build does not ship an old one.
      `python3 app/desktop/scripts/stage-control.py` re-stages `app/desktop/src-tauri/resources/control` and prints and
      checks the version it staged. It is a build step: it downloads the pinned CPython and the hash-locked wheels and
@@ -140,11 +153,12 @@ want built.
      the owner looks for a finished build.
   10. `git push --force-with-lease origin working`. One push. No pull request, no comment on any issue or pull
      request, no edit of the commit message.
-  11. Prove the build carries the feature:
-     `./dist/Strata-<version>-linux-x86_64.AppImage --appimage-extract-and-run --help` prints the `--lan` line.
+  11. Prove the build carries both features:
+     `./dist/Strata-<version>-linux-x86_64.AppImage --appimage-extract-and-run --help` prints the `--lan` line and
+     the `--resume` line.
 
 - Say what was not run. The `Minimal serving runtime` failure on this fork predates this work, so a red light there
-  is not evidence that the LAN change broke anything. Say which Control version the build carried, from step 6: the
+  is not evidence that these changes broke anything. Say which Control version the build carried, from step 6: the
   bundle under `app/desktop/src-tauri/resources` is staged by hand, so a build quietly shipping one version behind is
-  easy to do. Nothing of `--lan` lives in Control, which is the Rust shell and the Node host, so a stale bundle does
-  not break the share; it ships an old server, TUI and model setup.
+  easy to do. Neither feature lives in Control: `--lan` and `--resume` are the Rust shell and the Node host, so a
+  stale bundle does not break the share or the resume; it ships an old server, TUI and model setup.
